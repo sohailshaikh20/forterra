@@ -1,0 +1,45 @@
+name: "Forterra Security Scan"
+description: "AI-powered Terraform security scanning and hardening"
+author: "Forterra"
+
+branding:
+  icon: "shield"
+  color: "green"
+
+inputs:
+  path:
+    description: "Path to Terraform files"
+    required: false
+    default: "."
+  fail-on:
+    description: "Fail on severity level (critical, high, medium, low)"
+    required: false
+    default: "high"
+  api-key:
+    description: "Forterra/Anthropic API key (for AI-powered fixes)"
+    required: false
+  auto-fix:
+    description: "Generate fix suggestions as PR comments"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install Forterra
+      shell: bash
+      run: pip install forterra
+
+    - name: Run Security Scan
+      shell: bash
+      env:
+        FORTERRA_API_KEY: ${{ inputs.api-key }}
+      run: |
+        echo "🏰 Forterra Security Scan"
+        echo "========================="
+        forterra scan ${{ inputs.path }} --fail-on ${{ inputs.fail-on }}

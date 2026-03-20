@@ -1,0 +1,134 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.9.0",
+  "planned_values": {},
+  "resource_changes": [
+    {
+      "address": "aws_security_group.api",
+      "type": "aws_security_group",
+      "name": "api",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "id": "sg-0a1b2c3d",
+          "name": "api-sg",
+          "ingress": [
+            {
+              "from_port": 443,
+              "to_port": 443,
+              "protocol": "tcp",
+              "cidr_blocks": ["10.0.0.0/16"]
+            }
+          ]
+        },
+        "after": {
+          "id": "sg-0a1b2c3d",
+          "name": "api-sg",
+          "ingress": [
+            {
+              "from_port": 443,
+              "to_port": 443,
+              "protocol": "tcp",
+              "cidr_blocks": ["0.0.0.0/0"]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "address": "aws_db_instance.prod",
+      "type": "aws_db_instance",
+      "name": "prod",
+      "change": {
+        "actions": ["delete", "create"],
+        "before": {
+          "engine": "postgres",
+          "engine_version": "15.3",
+          "instance_class": "db.r6g.large",
+          "publicly_accessible": false,
+          "storage_encrypted": true
+        },
+        "after": {
+          "engine": "postgres",
+          "engine_version": "16.1",
+          "instance_class": "db.r6g.large",
+          "publicly_accessible": false,
+          "storage_encrypted": true
+        }
+      }
+    },
+    {
+      "address": "aws_iam_role_policy.lambda_permissions",
+      "type": "aws_iam_role_policy",
+      "name": "lambda_permissions",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":[\"s3:GetObject\"],\"Resource\":\"arn:aws:s3:::my-bucket/*\"}]}"
+        },
+        "after": {
+          "policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Action\":\"*\",\"Resource\":\"*\"}]}"
+        }
+      }
+    },
+    {
+      "address": "aws_s3_bucket.logs",
+      "type": "aws_s3_bucket",
+      "name": "logs",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "bucket": "my-app-logs-2026",
+          "acl": "private"
+        }
+      }
+    },
+    {
+      "address": "aws_instance.worker",
+      "type": "aws_instance",
+      "name": "worker",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "instance_type": "t3.medium",
+          "associate_public_ip_address": false
+        },
+        "after": {
+          "instance_type": "t3.large",
+          "associate_public_ip_address": false
+        }
+      }
+    },
+    {
+      "address": "aws_cloudwatch_log_group.app",
+      "type": "aws_cloudwatch_log_group",
+      "name": "app",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "retention_in_days": 30
+        },
+        "after": {
+          "retention_in_days": 90
+        }
+      }
+    },
+    {
+      "address": "aws_route53_record.api",
+      "type": "aws_route53_record",
+      "name": "api",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "name": "api.example.com",
+          "type": "A"
+        },
+        "after": {
+          "name": "api.example.com",
+          "type": "A"
+        }
+      }
+    }
+  ]
+}

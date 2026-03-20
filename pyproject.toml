@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forterra"
+version = "0.1.0"
+description = "AI Security Architect for Terraform — Generate production-grade, CIS-hardened Terraform from plain English."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Forterra", email = "hello@forterra.dev"},
+]
+keywords = ["terraform", "security", "iac", "devops", "ai", "infrastructure"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration",
+]
+
+dependencies = [
+    "click>=8.1.0",
+    "rich>=13.0.0",
+    "anthropic>=0.40.0",
+    "pyyaml>=6.0",
+
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+]
+
+# THIS is what creates the "forterra" command in the terminal
+# When someone runs `pip install forterra`, this line tells Python:
+# "Create a command called 'forterra' that runs the 'cli' function in 'forterra/cli.py'"
+[project.scripts]
+forterra = "forterra.cli:cli"
+
+[project.urls]
+Homepage = "https://github.com/YOUR_USERNAME/forterra"
+Repository = "https://github.com/YOUR_USERNAME/forterra"
+Issues = "https://github.com/YOUR_USERNAME/forterra/issues"
+
+[tool.setuptools.packages.find]
+include = ["forterra*"]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
