@@ -1,42 +1,10 @@
-"""
-Scanner — Scans existing Terraform files for security issues.
-
-HOW THIS WORKS:
-- This module reads .tf files and checks them against built-in security rules
-- It does NOT need an API key — it works completely offline
-- Rules are defined in the SECURITY_RULES list below
-- Each rule has a regex pattern that matches insecure configurations
-
-YOU CAN MODIFY:
-- Add new rules to SECURITY_RULES to catch more issues
-- Change severity levels
-- Add fix hints for each rule
-- Add support for new resource types
-
-This is the "free" part of Forterra — scanning is always free.
-The AI-powered fixing/generation is what needs the API key.
-"""
+"""Offline Terraform security scanner. No API key required."""
 
 import re
 from pathlib import Path
 from typing import List, Dict
 
-
-# ============================================================
-# SECURITY RULES
-# Each rule checks for a specific misconfiguration.
-# These run locally — no API needed.
-#
-# To add a new rule, copy an existing one and modify:
-#   - id: Unique identifier
-#   - severity: CRITICAL, HIGH, MEDIUM, or LOW
-#   - resource_pattern: Regex to match the resource type
-#   - vuln_pattern: Regex that matches the INSECURE configuration
-#   - message: Human-readable description
-#   - fix_hint: Suggestion for how to fix it
-# ============================================================
 SECURITY_RULES = [
-    # --- S3 / Storage ---
     {
         "id": "FT-S3-001",
         "severity": "CRITICAL",
@@ -61,8 +29,6 @@ SECURITY_RULES = [
         "message": "S3 bucket missing server-side encryption configuration",
         "fix_hint": "Add aws_s3_bucket_server_side_encryption_configuration with AES256 or aws:kms.",
     },
-
-    # --- Security Groups ---
     {
         "id": "FT-SG-001",
         "severity": "CRITICAL",
@@ -87,8 +53,6 @@ SECURITY_RULES = [
         "message": "RDP (port 3389) is open to the entire internet",
         "fix_hint": "Restrict RDP access to specific IP ranges or use a bastion host.",
     },
-
-    # --- RDS / Databases ---
     {
         "id": "FT-RDS-001",
         "severity": "CRITICAL",
@@ -113,8 +77,6 @@ SECURITY_RULES = [
         "message": "RDS automated backups are disabled",
         "fix_hint": "Set backup_retention_period to at least 7.",
     },
-
-    # --- IAM ---
     {
         "id": "FT-IAM-001",
         "severity": "CRITICAL",
@@ -131,8 +93,6 @@ SECURITY_RULES = [
         "message": "IAM user has wildcard permissions — should use roles instead of user policies",
         "fix_hint": "Use IAM roles with scoped policies instead of attaching policies to users.",
     },
-
-    # --- EC2 ---
     {
         "id": "FT-EC2-001",
         "severity": "MEDIUM",
@@ -141,8 +101,6 @@ SECURITY_RULES = [
         "message": "EC2 instance has public IP — consider using a load balancer or NAT gateway",
         "fix_hint": "Set associate_public_ip_address = false. Use a load balancer for web traffic.",
     },
-
-    # --- EKS ---
     {
         "id": "FT-EKS-001",
         "severity": "HIGH",
@@ -151,8 +109,6 @@ SECURITY_RULES = [
         "message": "EKS cluster API endpoint is public — should be private",
         "fix_hint": "Set endpoint_public_access = false and endpoint_private_access = true.",
     },
-
-    # --- Secrets in Code ---
     {
         "id": "FT-SEC-001",
         "severity": "CRITICAL",
@@ -161,8 +117,6 @@ SECURITY_RULES = [
         "message": "Possible hardcoded secret or credential in Terraform code",
         "fix_hint": "Use AWS Secrets Manager, SSM Parameter Store, or environment variables.",
     },
-
-    # --- General ---
     {
         "id": "FT-GEN-001",
         "severity": "LOW",
@@ -175,29 +129,19 @@ SECURITY_RULES = [
 
 
 class Scanner:
-    """
-    Scans Terraform files for security misconfigurations.
-    Works completely offline — no API key needed.
-    """
+    """Scans Terraform files for security misconfigurations."""
 
     def find_terraform_files(self, path: str) -> List[Path]:
-        """Find all .tf files in a directory."""
         root = Path(path)
         if root.is_file() and root.suffix == ".tf":
             return [root]
         return sorted(root.rglob("*.tf"))
 
     def scan_files(self, tf_files: List[Path]) -> List[Dict]:
-        """
-        Scan a list of Terraform files against all security rules.
-
-        Returns a list of issues found.
-        """
         issues = []
-
-        # Read all file contents
         all_content = {}
         combined_content = ""
+
         for tf_file in tf_files:
             try:
                 content = tf_file.read_text()
@@ -206,18 +150,13 @@ class Scanner:
             except Exception:
                 continue
 
-        # Check each file against each rule
         for filepath, content in all_content.items():
             for rule in SECURITY_RULES:
-                # Check if the resource type exists in this file
                 if not re.search(rule["resource_pattern"], content):
                     continue
 
-                # Check for vulnerability pattern
                 if "vuln_pattern" in rule:
-                    matches = re.finditer(rule["vuln_pattern"], content)
-                    for match in matches:
-                        # Find the resource name
+                    for match in re.finditer(rule["vuln_pattern"], content):
                         resource_name = self._find_resource_name(content, match.start())
                         issues.append({
                             "id": rule["id"],
@@ -230,7 +169,6 @@ class Scanner:
                             "code": match.group(0)[:200],
                         })
 
-                # Check for missing configurations
                 if "check_missing" in rule:
                     if not re.search(rule["check_missing"], combined_content):
                         resource_name = self._find_first_resource(content, rule["resource_pattern"])
@@ -246,7 +184,6 @@ class Scanner:
                                 "code": "",
                             })
 
-        # Deduplicate
         seen = set()
         unique_issues = []
         for issue in issues:
@@ -258,7 +195,6 @@ class Scanner:
         return unique_issues
 
     def count_resources(self, tf_files: List[Path]) -> int:
-        """Count the total number of Terraform resources across all files."""
         count = 0
         for tf_file in tf_files:
             try:
@@ -269,7 +205,6 @@ class Scanner:
         return count
 
     def _find_resource_name(self, content: str, position: int) -> str:
-        """Find the resource name that contains the given position."""
         before = content[:position]
         matches = list(re.finditer(r'resource\s+"([^"]+)"\s+"([^"]+)"', before))
         if matches:
@@ -278,11 +213,8 @@ class Scanner:
         return "unknown"
 
     def _find_first_resource(self, content: str, pattern: str) -> str:
-        """Find the first resource matching a pattern."""
         match = re.search(pattern + r'\s+"([^"]+)"', content)
         if match:
-            # Extract resource type from the pattern
-            type_match = re.search(r'"(aws_\w+)"', content[match.start():match.end() + 50])
             name_match = re.search(r'resource\s+"([^"]+)"\s+"([^"]+)"', content[match.start():match.end() + 100])
             if name_match:
                 return f"{name_match.group(1)}.{name_match.group(2)}"

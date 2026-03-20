@@ -1,195 +1,150 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-0.1.0--alpha-34d399?style=flat-square" />
+  <img src="https://img.shields.io/badge/version-0.1.0-34d399?style=flat-square" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
   <img src="https://img.shields.io/badge/terraform-%3E%3D1.5-844fba?style=flat-square&logo=terraform" />
-  <img src="https://img.shields.io/badge/AI--powered-Claude-ff6b35?style=flat-square" />
+  <img src="https://img.shields.io/badge/python-%3E%3D3.9-3776AB?style=flat-square&logo=python" />
 </p>
 
-<h1 align="center">
-  🏰 Forterra
-</h1>
+<h1 align="center">🏰 Forterra</h1>
 
 <p align="center">
-  <strong>AI Security Architect for Terraform</strong>
-  <br />
-  Generate production-grade, CIS-hardened Terraform from plain English.
-  <br />
-  Scan. Fix. Harden. Before it hits production.
+  <strong>AI-powered Terraform plan analyzer & security trainer</strong><br/>
+  Catch dangerous changes before they hit production. Learn why they're dangerous.
 </p>
 
 <p align="center">
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-features">Features</a> •
-  <a href="#-how-it-works">How It Works</a> •
-  <a href="#-cli-reference">CLI Reference</a> •
-  <a href="#-github-action">GitHub Action</a> •
-  <a href="#-contributing">Contributing</a>
+  <a href="#-plan-analyzer">Plan Analyzer</a> •
+  <a href="#-security-trainer">Security Trainer</a> •
+  <a href="#-scanner">Scanner</a> •
+  <a href="#-install">Install</a> •
+  <a href="#-github-action">GitHub Action</a>
 </p>
 
 ---
 
 ## The Problem
 
-> **63% of cloud security incidents stem from misconfigurations — not sophisticated attacks.**
+**63% of cloud security incidents come from misconfigurations.** Not sophisticated attacks. Misconfigurations.
 
-Every DevOps team faces the same cycle:
+Tools like Checkov and Trivy scan your `.tf` files for known issues. But they don't analyze what Terraform is **actually about to do**. A `terraform plan` with 500 lines of output and a database destroy-and-recreate buried on line 347? That's on you to catch.
 
-1. Developer copy-pastes Terraform from a blog post or Stack Overflow
-2. It works, gets merged, deployed to production
-3. 6 months later, a security audit reveals public S3 buckets, overly permissive IAM roles, unencrypted databases, open security groups
-4. Team spends weeks remediating — if they're lucky enough to find it before an attacker does
+Forterra fills two gaps:
 
-**Forterra breaks this cycle.** Instead of writing insecure Terraform and scanning it after the fact, Forterra generates secure-by-default infrastructure from the start — and continuously hardens everything in your pipeline.
+1. **Plan analysis** — scans `terraform plan` output and classifies every change by risk. Catches resource replacements that cause downtime, security groups being opened wider, IAM policies gaining wildcard permissions.
 
-## ⚡ Quick Start
+2. **Security training** — instead of cryptic rule IDs, teaches you *why* something is a risk with real attack scenarios, breach references, and fix code.
 
-### Install
+---
 
-```bash
-# macOS / Linux
-brew install forterra
-
-# Or with npm
-npm install -g @forterra/cli
-
-# Or run directly
-npx @forterra/cli generate "your architecture here"
-```
-
-### Generate Secure Terraform
+## 🔍 Plan Analyzer
 
 ```bash
-# Describe what you need — Forterra handles the security
-forterra generate "Three-tier web app on AWS with Postgres, Redis, and an ALB"
+terraform plan -out=tfplan
+terraform show -json tfplan > plan.json
+forterra analyze plan.json
 ```
 
-**Output:**
 ```
-🔍 Analyzing architecture requirements...
-🛡️  Applying CIS AWS Foundations Benchmark v3.0...
-🔐 Enforcing least-privilege IAM policies...
-📦 Generating modular Terraform structure...
+📊 Plan Analysis Summary
+Risk Score: 16/100 (CRITICAL)
+7 resources changing: +1 create  ~5 update  -0 destroy  ±1 replace
 
-✅ Generated 12 resources across 4 modules
-   Security Score: 96/100 (A+)
+🔴 DANGEROUS CHANGES:
+  REPLACE: aws_db_instance.prod
+    → Database destruction can cause permanent data loss
+    → ⚠️  THIS WILL LIKELY CAUSE DOWNTIME
 
-📁 Output:
-   ├── modules/
-   │   ├── vpc/
-   │   ├── compute/
-   │   ├── database/
-   │   └── iam/
-   ├── main.tf
-   ├── variables.tf
-   ├── outputs.tf
-   └── providers.tf
+🔒 SECURITY ISSUES:
+  CRITICAL: aws_iam_role_policy.lambda_permissions
+    IAM policy now includes wildcard (*) permissions
+
+🟢 SAFE CHANGES (3):
+  CREATE: aws_s3_bucket.logs
+  UPDATE: aws_instance.worker
+  UPDATE: aws_cloudwatch_log_group.app
 ```
 
-### Scan Existing Terraform
+What it catches that static scanners can't: destroy-and-recreate on databases and clusters (downtime risk), security groups opening wider, IAM wildcard escalation, DNS changes, and data-bearing resource destruction.
+
+Block dangerous plans in CI:
 
 ```bash
-# Point Forterra at your existing infrastructure code
+forterra analyze plan.json --fail-on high
+```
+
+---
+
+## 📚 Security Trainer
+
+```bash
+forterra learn ./infrastructure/
+```
+
+For every issue, you get the attack scenario, real-world breaches, fix code, and CIS benchmark reference:
+
+```
+❌ CRITICAL: aws_s3_bucket.data — public-read ACL
+
+  🎯 ATTACK SCENARIO:
+     Attacker uses BucketFinder to scan for public S3 buckets.
+     Your bucket shows up. They download everything.
+
+  📰 REAL-WORLD BREACHES:
+     Capital One (2019) — 100M records exposed
+     Twitch (2021) — Source code and earnings leaked
+
+  🔧 FIX: [copy-paste Terraform code]
+  📚 CIS AWS Foundations v3.0 — Rule 2.1.1
+```
+
+Browse lessons:
+
+```bash
+forterra learn --list-rules
+forterra learn --rule FT-S3-001
+```
+
+---
+
+## 🛡️ Scanner
+
+Offline scanning, no API key needed:
+
+```bash
 forterra scan ./infrastructure/
-
-# Output:
-# ⚠️  Found 3 issues in 47 resources:
-#    CRITICAL: aws_s3_bucket.data — public access not blocked
-#    HIGH: aws_rds_instance.main — encryption at rest disabled
-#    MEDIUM: aws_security_group.web — port 22 open to 0.0.0.0/0
-#
-# 🔧 Run `forterra fix` to auto-remediate with AI
+forterra score ./infrastructure/
 ```
 
-### Auto-Fix Issues
+---
+
+## ⚙️ Install
 
 ```bash
-# AI-powered remediation — generates a fix PR automatically
-forterra fix --auto-pr
-
-# Or fix interactively
-forterra fix --interactive
+pip install forterra
 ```
 
-## 🚀 Features
-
-### 🧠 AI-Powered Generation
-Describe your cloud architecture in plain English. Forterra understands architecture patterns, security requirements, and compliance frameworks — not just keywords.
+From source:
 
 ```bash
-forterra generate "Production EKS cluster with private node groups, \
-  Istio service mesh, and a Postgres RDS with automated backups"
+git clone https://github.com/YOUR_USERNAME/forterra.git
+cd forterra
+pip install -e .
 ```
 
-### 🛡️ CIS Hardened by Default
-Every generated resource follows CIS benchmarks out of the box:
+The core features (`analyze`, `learn`, `scan`, `score`) work without an API key.
 
-- **Encryption** — at rest (AES-256) and in transit (TLS 1.2+) for all supported resources
-- **Network isolation** — private subnets by default, minimal security group rules
-- **IAM least privilege** — scoped roles and policies, no wildcard permissions
-- **Logging & monitoring** — CloudTrail, VPC flow logs, access logging enabled
-- **Public access blocked** — S3, RDS, EKS API all private unless explicitly requested
-
-### 🔍 Security Scoring
-Every generated plan and scan includes a security posture score:
-
-```
-┌────────────────────────────────────────┐
-│  Security Score: 96/100  (A+)          │
-│                                        │
-│  ✅ Encryption at rest      (AES-256)  │
-│  ✅ Encryption in transit   (TLS 1.3)  │
-│  ✅ IAM least privilege     (scoped)   │
-│  ✅ Network isolation       (private)  │
-│  ✅ Logging enabled         (all)      │
-│  ⚠️  Backup retention       (7 days)   │
-│                                        │
-│  Recommendation: Increase backup       │
-│  retention to 30 days for production   │
-└────────────────────────────────────────┘
-```
-
-### 🔧 AI Auto-Remediation
-Don't just find problems — fix them:
+For AI-powered generation and auto-fix, set an Anthropic API key:
 
 ```bash
-forterra fix ./infrastructure/
-# Analyzes each issue
-# Generates minimal, targeted fixes
-# Explains what changed and why
-# Creates a PR with full context
+export FORTERRA_API_KEY=sk-ant-your-key
 ```
 
-### 📦 Modular Architecture
-Generated code follows Terraform best practices:
+---
 
-```
-output/
-├── modules/
-│   ├── vpc/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── compute/
-│   ├── database/
-│   └── iam/
-├── environments/
-│   ├── dev.tfvars
-│   ├── staging.tfvars
-│   └── prod.tfvars
-├── main.tf
-├── variables.tf
-├── outputs.tf
-├── providers.tf
-├── backend.tf
-└── versions.tf
-```
-
-### 🔗 CI/CD Integration
-Block insecure infrastructure from reaching production:
+## 🔗 GitHub Action
 
 ```yaml
-# .github/workflows/forterra.yml
-name: Forterra Security Scan
+name: Forterra Security Check
 on: [pull_request]
 
 jobs:
@@ -197,150 +152,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: forterra-ai/scan-action@v1
+      - uses: YOUR_USERNAME/forterra@main
         with:
           path: ./infrastructure/
-          fail-on: high  # Block PRs with HIGH or CRITICAL issues
-          auto-fix: true # Generate fix suggestions as PR comments
+          fail-on: high
 ```
-
-## 🏗️ How It Works
-
-```
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│                  │     │                  │     │                  │
-│  1. DESCRIBE     │────▶│  2. ANALYZE      │────▶│  3. GENERATE     │
-│                  │     │                  │     │                  │
-│  Plain English   │     │  AI understands  │     │  Secure, modular │
-│  architecture    │     │  intent, applies │     │  Terraform with  │
-│  description     │     │  security policy │     │  CIS hardening   │
-│                  │     │                  │     │                  │
-└──────────────────┘     └──────────────────┘     └──────────────────┘
-                                                          │
-                                                          ▼
-┌──────────────────┐     ┌──────────────────┐     ┌──────────────────┐
-│                  │     │                  │     │                  │
-│  6. MONITOR      │◀────│  5. DEPLOY       │◀────│  4. REVIEW       │
-│                  │     │                  │     │                  │
-│  Continuous      │     │  Apply with      │     │  Security score, │
-│  drift detection │     │  confidence via  │     │  hardening report │
-│  & alerting      │     │  terraform apply │     │  & explanations  │
-│                  │     │                  │     │                  │
-└──────────────────┘     └──────────────────┘     └──────────────────┘
-```
-
-## 📖 CLI Reference
-
-| Command | Description |
-|---|---|
-| `forterra generate "<prompt>"` | Generate secure Terraform from a description |
-| `forterra scan <path>` | Scan existing Terraform for security issues |
-| `forterra fix [path]` | AI-powered auto-remediation of detected issues |
-| `forterra fix --auto-pr` | Generate a GitHub PR with fixes |
-| `forterra score <path>` | Get a security score for your infrastructure |
-| `forterra policy init` | Initialize custom organization policies |
-| `forterra policy add "<rule>"` | Add a natural language security policy |
-| `forterra audit <path>` | Generate a compliance audit report (SOC2, PCI-DSS, HIPAA) |
-| `forterra drift` | Check for security-impacting drift |
-
-## 🔌 Supported Providers
-
-| Provider | Generate | Scan | Fix |
-|---|---|---|---|
-| AWS | ✅ | ✅ | ✅ |
-| Azure | ✅ | ✅ | ✅ |
-| GCP | ✅ | ✅ | 🚧 |
-| Kubernetes | 🚧 | ✅ | 🚧 |
-
-## 🔐 Compliance Frameworks
-
-- **CIS AWS Foundations Benchmark v3.0**
-- **CIS Azure Foundations Benchmark v2.1**
-- **CIS GCP Foundations Benchmark v2.0**
-- **SOC 2 Type II**
-- **PCI-DSS v4.0**
-- **HIPAA**
-- **NIST 800-53**
-
-## 🏛️ Architecture
-
-```
-forterra/
-├── cmd/                    # CLI entry points
-│   ├── generate.go
-│   ├── scan.go
-│   ├── fix.go
-│   └── root.go
-├── pkg/
-│   ├── ai/                 # AI engine (prompt construction, response parsing)
-│   │   ├── architect.go    # Architecture understanding & generation
-│   │   ├── remediator.go   # Issue fixing & PR generation
-│   │   └── scorer.go       # Security scoring engine
-│   ├── scanner/            # Static analysis engine
-│   │   ├── terraform.go    # HCL parsing & analysis
-│   │   ├── policies/       # Built-in security policies
-│   │   └── rules/          # CIS benchmark rules
-│   ├── generator/          # Terraform code generation
-│   │   ├── modules.go      # Module scaffolding
-│   │   ├── hardening.go    # Security hardening transforms
-│   │   └── templates/      # Resource templates
-│   ├── compliance/         # Compliance framework mappings
-│   └── output/             # Output formatters (terminal, JSON, SARIF)
-├── policies/               # Default policy library (YAML)
-├── action/                 # GitHub Action
-│   ├── action.yml
-│   └── entrypoint.sh
-├── web/                    # Web playground (React)
-├── docs/                   # Documentation
-├── Makefile
-├── go.mod
-└── README.md
-```
-
-## 💰 Pricing
-
-| | Free | Pro | Enterprise |
-|---|---|---|---|
-| **Price** | $0 forever | $29/mo | Custom |
-| Generate | 10/month | Unlimited | Unlimited |
-| Scan | Unlimited | Unlimited | Unlimited |
-| Auto-fix PRs | 5/month | Unlimited | Unlimited |
-| Compliance reports | — | ✅ | ✅ |
-| Custom policies | — | ✅ | ✅ |
-| Team dashboard | — | ✅ | ✅ |
-| SSO / SAML | — | — | ✅ |
-| SLA | — | — | ✅ |
-
-## 🤝 Contributing
-
-We love contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-```bash
-# Clone the repo
-git clone https://github.com/forterra-ai/forterra.git
-cd forterra
-
-# Install dependencies
-make setup
-
-# Run tests
-make test
-
-# Build
-make build
-```
-
-## 📄 License
-
-MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
-<p align="center">
-  <strong>Built with 🛡️ by the Forterra team</strong>
-  <br />
-  <a href="https://forterra.dev">Website</a> •
-  <a href="https://docs.forterra.dev">Docs</a> •
-  <a href="https://twitter.com/forterra_ai">Twitter</a> •
-  <a href="https://discord.gg/forterra">Discord</a>
-</p>
+## 📖 Commands
+
+| Command | API Key? | Description |
+|---|---|---|
+| `forterra analyze <plan.json>` | No | Analyze terraform plan for dangerous changes |
+| `forterra learn <path>` | No | Scan and teach with attack scenarios |
+| `forterra scan <path>` | No | Scan for misconfigurations |
+| `forterra score <path>` | No | Security score |
+| `forterra generate "<prompt>"` | Yes | Generate secure Terraform from English |
+| `forterra fix <path>` | Yes | AI auto-remediation |
+
+---
+
+## 🤝 Contributing
+
+```bash
+git clone https://github.com/YOUR_USERNAME/forterra.git
+cd forterra && python3 -m venv venv && source venv/bin/activate
+pip install -e ".[dev]" && pytest tests/ -v
+```
+
+Add scanner rules in `forterra/scanner.py`. Add attack scenarios in `forterra/learn.py`.
+
+## 📄 License
+
+MIT
