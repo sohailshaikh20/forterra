@@ -126,7 +126,7 @@ pip install forterra
 From source:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/forterra.git
+git clone https://github.com/YOUR_USERNAME/forterra.git](https://github.com/sohailshaikh20/forterra.git
 cd forterra
 pip install -e .
 ```
